@@ -8,7 +8,7 @@ const addRoot = async() => {
     // 1. 连接数据库
     await mongoose.connect(config.DB_URL + config.MODEL_USER);
     // 2. 定义模型
-    let User = new config.USER_SCHEMA({username: 'root' , password : cryptoPWD('msic_cnd'), token: generateToken('root'),auth: 'root' ,depart: 'root'})
+    let User = new config.USER_SCHEMA({username: 'root' , password : cryptoPWD('msi@eps'), token: generateToken('root'),auth: 'root' ,depart: 'root'})
     // 3. 存储数据
     await User.save()
     // 4. 断开连接

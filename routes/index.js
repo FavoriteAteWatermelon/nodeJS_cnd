@@ -5,18 +5,15 @@ const {cryptoPWD} = require('../utils/encrypt')
 const {generateToken, validateToken} = require('../utils/token')
 const multer = require('multer')
 const fs = require('fs')
+// const host_address = 'http://172.17.160.101:3000/upload/'
 const host_address = 'http://localhost:3000/upload/'
 var upload = multer({
   dest: './public/uploads'
 })
-// 使用中間件
-// router.use(function timeLog (req, res, next) {
-//   console.log('Time: ', Date.now())
-//   next()
-// })
+
 
 // 增加一個用戶
-router.post('/user/addUser', async (req, res) =>{
+router.post('/eps/user/addUser', async (req, res) =>{
   // console.log(req.body)
   let {username, depart} = req.body
   let data = await validateToken(req.headers.authorization)
@@ -25,7 +22,7 @@ router.post('/user/addUser', async (req, res) =>{
     if(state === 'ok'){
       res.send('exist')
     }else {
-      let userState = await db.user.addUser(username,cryptoPWD('msic@123'),depart,generateToken(username))
+      let userState = await db.user.addUser(username,cryptoPWD('msi@123'),depart,generateToken(username))
       if(userState) {
         res.send('ok')
       }else {
@@ -37,11 +34,37 @@ router.post('/user/addUser', async (req, res) =>{
   }
 })
 
+// 所有用户信息
+router.get('/eps/user/info',  async (req, res) =>{
+  let data = await db.user.getAllUserInfo()
+  res.send(data)
+})
+
+// 刪除用戶
+router.post('/eps/user/delete',  async (req, res) =>{
+    validateToken(req.headers.authorization).then((data) => {
+     if (data.name === 'root') {
+        let {_id,username} = req.body
+        // console.log(_id)
+        db.user.deleteItem(_id, username).then(data => {
+          res.send(data)
+        })
+     } else {
+       return ''
+     }
+  })
+})
+
+
+
 // 用户登陆
-router.post('/user/login', async (req, res) =>{
+router.post('/eps/user/login', async (req, res) =>{
   let {username, password} = req.body
+  // console.log(password)
   let newToken = generateToken(username)
+  // console.log(newToken)
   let data = await db.user.findUser(username, cryptoPWD(password))
+  // console.log(data)
   if (data){
     let newdata = await db.user.userUpdate(username,newToken)
     if (newdata === 'ok') {
@@ -59,207 +82,107 @@ router.post('/user/login', async (req, res) =>{
 })
 
 
-
-// 處理issue上傳
-router.post('/issue/addIssue',(req, res) => {
-  let {username,line,machineNum,barcode,description,user,stack,happenDate,imgUrl,imgUrlRes} = req.body
-  validateToken(req.headers.authorization).then(data => {
-      if (data.name){
-        db.user.findUserExist(username).then(state => {
-          if (state === 'ok') {
-            db.issue.addIssue(username, line,machineNum,barcode,description,user,stack,happenDate,host_address+imgUrl,host_address +imgUrlRes)
-            .then((data) => {
-              if (data === 'ok'){
-                res.send(data)
-              } else {
-                res.send('error')
-              }
-            })
-          }else {
-            res.send('no_exist')
-          }
-        })
-      } else {
-        res.send('')
-      }
-
-  })
-  
-
-})
-
-// 查詢issue信息
-router.get('/issue/issueInfo',(req, res) => {
+// 查詢trainList title, requiro ,guider ,depart ,creator ,createDate
+router.get('/eps/fae/trainlist/find',(req, res) => {
   let {skip,limit,dateArray} = req.query
- 
-  let needDateArray = JSON.parse(dateArray)
+  let trainListDateArray = JSON.parse(dateArray)
   // console.log(req.query)
-  db.issue.findIssue(skip, limit,needDateArray)
+  db.trainList.findTrainList(skip, limit,trainListDateArray)
   .then((data) => {
     res.send(data)
   })
 })
 
 
-// 删除一个issue
-router.post('/issue/deleteInfo',(req, res) => {
+// 新增title, requiro ,guider ,depart ,creater , trainOwner, trainDuring, createDate
+router.post('/eps/fae/trainlist/add', async(req, res) => {
+  let craeteDate = Date.now()
+  let {title, requiro ,guider ,creater ,trainOwner, trainDuring,} = req.body
+  let data = await validateToken(req.headers.authorization)
+  if (data.name) {
+    let {depart} = await db.user.findUserExist(creater)
+    let state = await db.trainList.addTrainList(title, requiro ,guider ,depart, creater, trainOwner, trainDuring, craeteDate)
+    if (state == 'ok') {
+      res.send('ok')
+    } else {
+      res.send('error')
+    }
+  }else {
+    res.send('')
+  }
+})
+
+// 删除一个  trainList
+router.post('/eps/fae/trainlist/delete',(req, res) => {
   let {_id,username} = req.body
   // console.log(_id)
-  db.issue.deleteItem(_id, username).then(data => {
+  db.trainList.deleteItem(_id, username).then(data => {
     res.send(data)
   })
 })
 
 
 
-// 處理needle上傳
-router.post('/needle/needleHeight',(req, res) => {
-  let {happenDate,machineNum,num,partNum,username,position,height,reverseHeight,mesureHeight,imgUrl,isOK,user} = req.body
-  validateToken(req.headers.authorization).then(data => {
-      if (data.name){
-        db.user.findUserExist(username).then(state => {
-          if (state === 'ok') {
-            db.toolHeight.addToolHeiht(happenDate,machineNum,num,partNum,position,height,reverseHeight,mesureHeight,host_address+imgUrl,isOK,user,username)
-            .then((data) => {
-              if (data === 'ok'){
-                res.send(data)
-              } else {
-                res.send('error')
-              }
-            })
-          }else {
-            res.send('no_exist')
-          }
-        })
-      } else {
-        res.send('')
-      }
-
+// 查詢training title status  summarize  imgStart imgStartDes imgDoing imgDoingDes imgEnd imgEndDes trainUser completionTime  guider createUser createDate
+router.get('/eps/fae/training/find',(req, res) => {
+  let {skip,limit,dateArray} = req.query
+  let trainListDateArray = JSON.parse(dateArray)
+  // console.log(req.query)
+  db.training.findTraining(skip, limit,trainListDateArray)
+  .then((data) => {
+    res.send(data)
   })
-  
-
 })
 
-// 查詢needle信息
-router.get('/needle/needleInfo',(req, res) => {
-  let {skip,limit,dateArray} = req.query
- 
-  let needDateArray = JSON.parse(dateArray)
+// 查詢training title status  summarize  imgStart imgStartDes imgDoing imgDoingDes imgEnd imgEndDes trainUser completionTime  guider createUser createDate
+router.get('/eps/fae/training/findAll',(req, res) => {
+  let {dateArray} = req.query
+  let trainListDateArray = JSON.parse(dateArray)
   // console.log(req.query)
-  db.toolHeight.findToolHeigth(skip, limit,needDateArray)
+  db.training.findTrainingAll(trainListDateArray)
   .then((data) => {
     res.send(data)
   })
 })
 
 
-// 删除一个needle
-router.post('/needle/deleteInfo',(req, res) => {
+// 新增title ,status  ,summarize , imgStart, imgStartDes, imgDoing, imgDoingDes, imgEnd, imgEndDes, trainUser, completionTime,  guider, createUser ,createDate
+router.post('/eps/fae/training/add', async(req, res) => {
+  let createDate = Date.now()
+  let {title ,status  ,machineNum ,summarize , imgStart, imgStartDes, imgDoing, imgDoingDes, imgEnd, imgEndDes, trainUser, completionTime,  guider, createUser } = req.body
+  let data = await validateToken(req.headers.authorization)
+  if (data.name) {
+    // let {depart} = await db.user.findUserExist(creater)
+    let state = await db.training.addTraining(title ,status  ,machineNum ,summarize ,host_address+ imgStart, imgStartDes,host_address+ imgDoing, imgDoingDes, host_address + imgEnd, imgEndDes, trainUser, completionTime,  guider, createUser ,createDate)
+    if (state == 'ok') {
+      res.send('ok')
+    } else {
+      res.send('error')
+    }
+  }else {
+    res.send('')
+  }
+})
+
+// 更新  training
+router.post('/eps/fae/training/update',(req, res) => {
+  let {_id,updateData} = req.body
+  // console.log(_id)
+  db.training.updatedItem(_id,updateData).then(data => {
+    console.log(data)
+  })
+  // db.training.deleteItem(_id, username).then(data => {
+  //   res.send(data)
+  // })
+})
+
+
+
+// 删除一个  training
+router.post('/eps/fae/training/delete',(req, res) => {
   let {_id,username} = req.body
   // console.log(_id)
-  db.toolHeight.deleteItem(_id, username).then(data => {
-    res.send(data)
-  })
-})
-
-
-// 處理toolRecord上傳
-router.post('/toolRecord/addToolRecord',(req, res) => {
-  let {happenDate,machineNum,num,partNum,clear,confirm,replaceNil,replaceCap,description,result,upImage,downImage,user,username} = req.body
-  validateToken(req.headers.authorization).then(data => {
-      if (data.name){
-        db.user.findUserExist(username).then(state => {
-          if (state === 'ok') {
-            db.toolRecord.addToolRecord(happenDate,machineNum,num,partNum,clear,confirm,replaceNil,replaceCap,description,result,host_address+ upImage,host_address+ downImage,user,username)
-            .then((data) => {
-              if (data === 'ok'){
-                res.send(data)
-              } else {
-                res.send('error')
-              }
-            })
-          }else {
-            res.send('no_exist')
-          }
-        })
-      } else {
-        res.send('')
-      }
-
-  })
-  
-
-})
-
-// 查詢toolRecord信息
-router.get('/toolRecord/toolRecordInfo',(req, res) => {
-  let {skip,limit,dateArray} = req.query
- 
-  let needDateArray = JSON.parse(dateArray)
-  // console.log(req.query)
-  db.toolRecord.findToolRecord(skip, limit,needDateArray)
-  .then((data) => {
-    res.send(data)
-  })
-})
-
-
-// 删除一个toolRecord
-router.post('/toolRecord/deleteInfo',(req, res) => {
-  let {_id,username} = req.body
-  // console.log(_id)
-  db.toolRecord.deleteItem(_id, username).then(data => {
-    res.send(data)
-  })
-})
-
-
-// happenDate,line,machineNum,station, phenomenon,position,happenNum,owner,description,createUser
-// 處理onlineError上傳
-router.post('/onlineError/addOnlineError',(req, res) => {
-  let {happenDate,line,machineNum,station, phenomenon,position,happenNum,owner,description,username} = req.body
-  validateToken(req.headers.authorization).then(data => {
-      if (data.name){
-        db.user.findUserExist(username).then(state => {
-          if (state === 'ok') {
-            db.onlineError.addOnlineError(happenDate,line,machineNum,station, phenomenon,position,happenNum,owner,description,username)
-            .then((data) => {
-              if (data === 'ok'){
-                res.send(data)
-              } else {
-                res.send('error')
-              }
-            })
-          }else {
-            res.send('no_exist')
-          }
-        })
-      } else {
-        res.send('')
-      }
-
-  })
-  
-
-})
-
-// 查詢toolRecord信息
-router.get('/onlineError/onlineErrorInfo',(req, res) => {
-  let {skip,limit,dateArray} = req.query
- 
-  let needDateArray = JSON.parse(dateArray)
-  // console.log(req.query)
-  db.onlineError.findOnlineError(skip, limit,needDateArray)
-  .then((data) => {
-    res.send(data)
-  })
-})
-
-// 删除一个toolRecord
-router.post('/onlineError/deleteInfo',(req, res) => {
-  let {_id,username} = req.body
-  // console.log(_id)
-  db.onlineError.deleteItem(_id, username).then(data => {
+  db.training.deleteItem(_id, username).then(data => {
     res.send(data)
   })
 })
@@ -267,158 +190,11 @@ router.post('/onlineError/deleteInfo',(req, res) => {
 
 
 
-// happenDate,name,partNum,num,vendor,period,preTime,actualTime,department,user,createUser
-// 處理apply
-router.post('/apply/addApply',(req, res) => {
-  let {happenDate,line,machineNum,station, phenomenon,position,happenNum,owner,description,createUser} = req.body
-  validateToken(req.headers.authorization).then(data => {
-      if (data.name){
-        db.user.findUserExist(username).then(state => {
-          if (state === 'ok') {
-            db.apply.addApply(happenDate,line,machineNum,station, phenomenon,position,happenNum,owner,description,createUser)
-            .then((data) => {
-              if (data === 'ok'){
-                res.send(data)
-              } else {
-                res.send('error')
-              }
-            })
-          }else {
-            res.send('no_exist')
-          }
-        })
-      } else {
-        res.send('')
-      }
-
-  })
-  
-
-})
-
-// 查詢apply
-router.get('/apply/applyInfo',(req, res) => {
-  let {skip,limit,dateArray} = req.query
- 
-  let needDateArray = JSON.parse(dateArray)
-  // console.log(req.query)
-  db.apply.findApply(skip, limit,needDateArray)
-  .then((data) => {
-    res.send(data)
-  })
-})
-
-// 删除一个apply
-router.post('/apply/deleteInfo',(req, res) => {
-  let {_id,username} = req.body
-  // console.log(_id)
-  db.apply.deleteItem(_id, username).then(data => {
-    res.send(data)
-  })
-})
 
 
 
-// happenDate,machineNum,station,line,phenomenon,position,issueNum,percent,createUser
-// 处理every
-router.post('/every/addEvery',(req, res) => {
-  let {happenDate,machineNum,station,line,phenomenon,position,issueNum,percent,createUser} = req.body
-  validateToken(req.headers.authorization).then(data => {
-      if (data.name){
-        db.user.findUserExist(username).then(state => {
-          if (state === 'ok') {
-             db.every.addEvery(happenDate,machineNum,station,line,phenomenon,position,issueNum,percent,createUser)
-            .then((data) => {
-              if (data === 'ok'){
-                res.send(data)
-              } else {
-                res.send('error')
-              }
-            })
-          }else {
-            res.send('no_exist')
-          }
-        })
-      } else {
-        res.send('')
-      }
-
-  })
-  
-
-})
-
-// 查詢apply
-router.get('/every/everyInfo',(req, res) => {
-  let {skip,limit,dateArray} = req.query
- 
-  let needDateArray = JSON.parse(dateArray)
-  // console.log(req.query)
-  db.every.findEvery(skip, limit,needDateArray)
-  .then((data) => {
-    res.send(data)
-  })
-})
-
-// 删除一个apply
-router.post('/every/deleteInfo',(req, res) => {
-  let {_id,username} = req.body
-  // console.log(_id)
-  db.every.deleteItem(_id, username).then(data => {
-    res.send(data)
-  })
-})
 
 
-// happenDay,part,during,line,series,machine,orientation,question1,question2,answer,dealUser,lostTime,errorStatus,cause,owner,process,prevent
-// 处理every
-router.post('/total/addTotal',(req, res) => {
-  let {happenDay,part,during,line,series,machine,orientation,question1,question2,answer,dealUser,lostTime,errorStatus,cause,owner,process,prevent,createUser} = req.body
-  validateToken(req.headers.authorization).then(data => {
-      if (data.name){
-        db.user.findUserExist(username).then(state => {
-          if (state === 'ok') {
-             db.total.addTotal(happenDay,part,during,line,series,machine,orientation,question1,question2,answer,dealUser,lostTime,errorStatus,cause,owner,process,prevent,createUser)
-            .then((data) => {
-              if (data === 'ok'){
-                res.send(data)
-              } else {
-                res.send('error')
-              }
-            })
-          }else {
-            res.send('no_exist')
-          }
-        })
-      } else {
-        res.send('')
-      }
-
-  })
-  
-
-})
-
-// 查詢total
-router.get('/total/totalInfo',(req, res) => {
-  let {skip,limit,dateArray} = req.query
- 
-  let needDateArray = JSON.parse(dateArray)
-  // console.log(req.query)
-  db.total.findTotal(skip, limit,needDateArray)
-  .then((data) => {
-    res.send(data)
-  })
-})
-
-// 删除一个apply
-router.post('/total/deleteInfo',(req, res) => {
-  let {_id,username} = req.body
-  // console.log(_id)
-  db.total.deleteItem(_id, username).then(data => {
-    res.send(data)
-  })
-})
 
 
 // 处理文件上传
@@ -442,11 +218,6 @@ router.post('/image/upload',upload.single('image') ,(req,res) => {
 
 
 
-// 所有用户信息
-router.get('/user/info',  async (req, res) =>{
-  let data = await db.user.getAllUserInfo()
-  res.send(data)
-})
 
 // define the about route
 router.get('/about', function (req, res) {

@@ -4,7 +4,7 @@ const MYSCRET = 'MSI_CND'
 
 //jwt生成加密token，username是公文，密钥是“secret”，1小时 60 * 60 * 1 后过期
 exports.generateToken = (name) => {
-  token = jwt.sign({ name }, MYSCRET, { expiresIn: '360000ms' });
+  token = jwt.sign({ name }, MYSCRET, { expiresIn: '3600000ms' });
   return token;
 }
 

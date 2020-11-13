@@ -20,6 +20,24 @@ const addUser = async(username,password,depart,token) => {
     console.log(e)
   }
 }
+// 查询所有用户信息
+const getAllUserInfo = async () => {
+  try {
+    await mongoose.connect(config.DB_URL + config.MODEL_USER);
+    let User =  config.USER_SCHEMA
+    let data = await User.find({},{token: 0, password: 0}).sort({ "_id": -1 })
+    mongoose.disconnect()
+    // console.log(data)
+    return data
+  }
+  catch (err) {
+    // for debug
+    console.error(err.message);
+    process.exit(1);
+    return 'err'
+  }
+}
+
 
 // 更新资用户资料
 const userUpdate = async(username, token) => {
@@ -57,7 +75,8 @@ const findUserExist = async(username) => {
     mongoose.disconnect()
     // 此data是mongodb对象，不能delete属性
     if (data != null) {
-      return 'ok'
+      let {username, depart} = data
+      return {username, depart}
     } else {
       return ''
     }
@@ -98,28 +117,29 @@ const findUser = async(username, password) => {
   }
 }
 
-// 查询所有用户信息
-const getAllUserInfo = async () => {
+
+// 删除一条信息
+const deleteItem = async(_id, username) => {
   try {
+    // 1. 连接数据库
     await mongoose.connect(config.DB_URL + config.MODEL_USER);
+    // 2. 定义模型
     let User =  config.USER_SCHEMA
-    let data = await User.find({},{token: 0, password: 0}).sort({ "_id": -1 })
-    mongoose.disconnect()
-    // console.log(data)
-    return data
-  }
-  catch (err) {
-    // for debug
-    console.error(err.message);
-    process.exit(1);
-    return 'err'
+    let data = await  User.deleteOne({'_id': _id})
+    if (data=== 'error') {
+      return ''
+    } else {
+      return 'ok'
+    }
+  } catch (error) {
+    return 'error'
   }
 }
-
 exports.user= {
   addUser,
   findUser,
   userUpdate,
   getAllUserInfo,
-  findUserExist
+  findUserExist,
+  deleteItem
 }
