@@ -5,8 +5,8 @@ const {cryptoPWD} = require('../utils/encrypt')
 const {generateToken, validateToken} = require('../utils/token')
 const multer = require('multer')
 const fs = require('fs')
-// const host_address = 'http://172.17.160.101:3000/upload/'
-const host_address = 'http://localhost:3000/upload/'
+const host_address = 'http://123.207.42.169:3000/upload/'
+// const host_address = 'http://localhost:3000/upload/'
 var upload = multer({
   dest: './public/uploads'
 })
